@@ -1,0 +1,5 @@
+policy default deny
+allow		uid=500			*												*								*
+allow		uid=600			*												customer=acme		acme::devserver
+allow		uid=600			enable disable status		customer=acme		*
+allow		uid=700			restart									(puppet().enabled=false and environment=production) or environment=development
