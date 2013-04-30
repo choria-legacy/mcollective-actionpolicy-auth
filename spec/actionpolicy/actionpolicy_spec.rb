@@ -78,6 +78,15 @@ module MCollective
           ActionPolicy.any_instance.expects(:parse_policy_file).with('/rspecdir/policyfile')
           actionpolicy.authorize_request
         end
+
+        it 'should enforce precedence of enable_default over allow_unconfigured' do
+          config.stubs(:pluginconf).returns({'actionpolicy.allow_unconfigured' => 'y',
+                                             'actionpolicy.enable_default' => 'y'})
+          ActionPolicy.any_instance.expects(:lookup_policy_file).returns('/rspec/default')
+          ActionPolicy.any_instance.expects(:parse_policy_file).with('/rspec/default')
+          actionpolicy.authorize_request
+
+        end
       end
 
       describe '#parse_policy_file' do

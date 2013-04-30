@@ -32,7 +32,9 @@ Enabling a default policy
     plugin.actionpolicy.enable_default = 1
     plugin.actionpolicy.default_name = default
 
-This allows you to create a policy file called default.policy which will be used unless a specific policy file exists.
+This allows you to create a policy file called default.policy which will be used unless a specific policy file exists. Note that if both
+allow_unconfigured and enable_default are configured all requests will go through the default policy, as enable_default takes precedence
+over allow_unconfigured.
 
 Usage
 =============================
