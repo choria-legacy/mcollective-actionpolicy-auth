@@ -1,0 +1,13 @@
+Source: mcollective-actionpolicy-auth
+Homepage: https://github.com/puppetlabs/mcollective-actionpolicy-auth
+Section: utils
+Priority: extra
+Maintainer: Puppet Labs
+Build-Depends: cdbs, debhelper
+Standards-Version: 3.8.0
+
+Package: mcollective-actionpolicy-auth
+Architecture: all
+Description: Action Policy simplerpc authorization plugin
+Depends: mcollective-common(>= 2.2.1)
+
