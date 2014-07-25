@@ -1,2 +1,4 @@
 ext/packaging
 /pkg/
+
+Gemfile.lock
