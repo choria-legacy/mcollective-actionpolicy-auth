@@ -67,7 +67,7 @@ module MCollective
       def check_policy(rpccaller, actions, facts, classes)
         # If we have a wildcard caller or the caller matches our policy line
         # then continue else skip this policy line\
-        if (rpccaller != '*') && (rpccaller != @caller)
+        if (rpccaller != '*') && (! rpccaller || ! rpccaller.split.include?(@caller))
           return false
         end
 

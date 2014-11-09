@@ -343,6 +343,20 @@ module MCollective
 
 
         end
+
+        it 'should parse example16 correctly' do
+          # match uid in the list
+          request.stubs(:caller).returns('uid=600')
+          actionpolicy = ActionPolicy.new(request)
+          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example16')).should be_true
+
+          # match uid not in the list
+          request.stubs(:caller).returns('uid=800')
+          actionpolicy = ActionPolicy.new(request)
+          expect{
+            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example16'))
+          }.to raise_error RPCAborted
+        end
       end
 
       describe '#check_policy' do
