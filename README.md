@@ -73,7 +73,7 @@ Policy files must have the following format:
 * A single `policy default deny` or `policy default allow` line is permitted; it can go anywhere in the file. This default policy will apply to any commands that don't match a specific rule. If you don't specify a default policy, the value of the `plugin.actionpolicy.allow_unconfigured` setting will be used as the default.
 * Any number of _policy lines_ are permitted. These must be **tab delimited** lines with either four or five fields (the final field is optional) in the following order:
     1. `allow` or `deny`
-    2. Caller ID --- must be either `*` (always matches) or **one** caller ID string (see below)
+    2. Caller ID --- must be either `*` (always matches) or a space-separated list of caller ID strings (see below)
     3. Actions --- must be either `*` (always matches) or a space-separated list of actions
     4. Facts --- may be either `*` (always matches), a space-separated list of `fact=value` pairs (matches if _every_ listed fact matches), or any valid [compound filter string][compound]
     5. Classes --- may be completely absent (always matches), `*` (always matches), a space-separated list of class names (matches if _every_ listed class is present), or any valid [compound filter string][compound]
@@ -89,7 +89,7 @@ Policy files must have the following format:
 
 ### Caller ID
 
-Caller ID strings are always of the form `<kind>=<value>`, but both the kind and the value of the ID will depend on your security plugin. See your security plugin's documentation or code for details.
+Caller ID strings are always of the form `<kind>=<value>`, but both the kind and the value of the ID will depend on your security plugin. See your security plugin's documentation or code for details. Multiple Caller IDs separated by spaces are supported to allow grouping similar callers together.
 
 * The recommended SSL security plugin sets caller IDs of `cert=<NAME>`, where `<NAME>` is the filename of the client's public key file (minus the `.pem` extension). So a request validated with the `puppet-admins.pem` public key file would be given a caller ID of `cert=puppet-admins`. This kind of caller ID is cryptographically authenticated.
 * The PSK security plugin defaults to caller IDs of `uid=<UID>`, where `<UID>` is the local UID of the client process. [There are several other options available](https://github.com/puppetlabs/marionette-collective/blob/master/plugins/mcollective/security/psk.rb#L79), which can be configured with the `plugin.psk.callertype` setting. **None of PSK's caller IDs are authenticated,** and you should generally not be relying on authorization at all if you are using the PSK security plugin.
