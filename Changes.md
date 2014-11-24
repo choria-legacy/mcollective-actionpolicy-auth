@@ -1,3 +1,8 @@
+# 2.1.0
+
+* Support multiple callerids to be specified per line (PR#6)
+
+
 # 2.0.1
 
 Released 2014-07-25
