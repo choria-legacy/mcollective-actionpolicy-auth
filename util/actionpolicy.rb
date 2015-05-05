@@ -56,7 +56,7 @@ module MCollective
               end
             end
           else
-            Log.debug("Cannot parse policy line: %s" % line)
+            Log.warn("Cannot parse policy %s line: %s" % [policy_file, line])
           end
         end
 
