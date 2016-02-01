@@ -93,6 +93,7 @@ Caller ID strings are always of the form `<kind>=<value>`, but both the kind and
 
 * The recommended SSL security plugin sets caller IDs of `cert=<NAME>`, where `<NAME>` is the filename of the client's public key file (minus the `.pem` extension). So a request validated with the `puppet-admins.pem` public key file would be given a caller ID of `cert=puppet-admins`. This kind of caller ID is cryptographically authenticated.
 * The PSK security plugin defaults to caller IDs of `uid=<UID>`, where `<UID>` is the local UID of the client process. [There are several other options available](https://github.com/puppetlabs/marionette-collective/blob/master/plugins/mcollective/security/psk.rb#L79), which can be configured with the `plugin.psk.callertype` setting. **None of PSK's caller IDs are authenticated,** and you should generally not be relying on authorization at all if you are using the PSK security plugin.
+* The SSHKey security plugin defaults to caller IDs of `sshkey=<USERNAME>`, where `<USERNAME>` is the local username of the client process. If your public keys are staticly predefined, or dynamicly learned this kind of caller ID is cryptographically authenticated.  It is strongly recommended that you do not enable the override existing keys option of sshkey.
 
 
 Hardcoding ActionPolicy Into a Specific Agent
