@@ -6,26 +6,80 @@ require File.join(File.dirname(__FILE__), '../../', 'util', 'actionpolicy.rb')
 module MCollective
   module Util
     describe ActionPolicy do
-      let(:request) do
-        request = mock
-        request.stubs(:agent).returns('rspec_agent')
-        request.stubs(:caller).returns('rspec_caller')
-        request.stubs(:action).returns('rspec_action')
-        request
-      end
-
-      let(:config) do
-        config = mock
-        config.stubs(:configdir).returns('/rspecdir')
-        config.stubs(:pluginconf).returns({})
-        config
-      end
-
+      let(:request) { stub(:agent => 'rspec_agent', :caller => 'rspec_caller', :action => 'rspec_action') }
+      let(:config) { stub(:configdir => '/rspecdir', :pluginconf => {}) }
+      let(:fixtures_dir) { File.join(File.dirname(__FILE__), 'fixtures') }
       let(:actionpolicy) { ActionPolicy.new(request) }
 
       before do
         Config.stubs(:instance).returns(config)
-        @fixtures_dir = File.join(File.dirname(__FILE__), 'fixtures')
+      end
+
+      describe "#action_in_actions?" do
+        it 'should correctly determine if the action is in the actions' do
+          expect(actionpolicy.action_in_actions?('one two three')).to be(false)
+          expect(actionpolicy.action_in_actions?('rspec_action another_action')).to be(true)
+          expect(actionpolicy.action_in_actions?('another_action rspec_action')).to be(true)
+        end
+      end
+
+      describe '#caller_in_groups?' do
+        before(:each) do
+          Log.stubs(:debug)
+          actionpolicy.parse_group_file(File.join(fixtures_dir, "groups"))
+        end
+
+        it 'should return false for nil groups' do
+          expect(actionpolicy.caller_in_groups?(nil)).to be(false)
+        end
+
+        it 'should find the caller in the groups' do
+          expect(actionpolicy.caller_in_groups?("sysadmin")).to be(true)
+          expect(actionpolicy.caller_in_groups?("app_admin")).to be(false)
+          expect(actionpolicy.caller_in_groups?("single_group")).to be(true)
+          expect(actionpolicy.caller_in_groups?("foo")).to be(false)
+        end
+      end
+
+      describe '#caller_in_callerids?' do
+        it 'should correctly determine if the caller is in the ids' do
+          expect(actionpolicy.caller_in_callerids?('one two three')).to be(false)
+          expect(actionpolicy.caller_in_callerids?('rspec_caller another_caller')).to be(true)
+          expect(actionpolicy.caller_in_callerids?('another_caller rspec_caller')).to be(true)
+        end
+      end
+
+      describe '#parse_group_file' do
+        before(:each) do
+          Log.stubs(:debug)
+          Log.stubs(:warn)
+        end
+
+        it 'should do nothing for nil groups files' do
+          expect(actionpolicy.parse_group_file(nil)).to be_nil
+        end
+
+        it 'should do nothing for non existing group files' do
+          File.expects(:exist?).with('/nonexisting/g_file').returns(false)
+          expect(actionpolicy.parse_group_file('/nonexisting/g_file')).to be_nil
+        end
+
+        it 'should do nothing for unreadable group files' do
+          File.expects(:exist?).with('/nonexisting/g_file').returns(true)
+          File.expects(:readable?).with('/nonexisting/g_file').returns(false)
+          expect(actionpolicy.parse_group_file('/nonexisting/g_file')).to be_nil
+        end
+
+        it 'should parse the groups correctly' do
+          groups = actionpolicy.parse_group_file(File.join(fixtures_dir, 'groups'))
+
+          # specifically verifies that only valid groups are in the list
+          expect(groups).to eq(
+            'sysadmin' => ['cert=sa1', 'cert=sa2', 'rspec_caller'],
+            'app_admin' => ['cert=aa1', 'cert=aa2'],
+            'single_group' => ['rspec_caller'],
+          )
+        end
       end
 
       describe '#authorize' do
@@ -40,7 +94,7 @@ module MCollective
         it 'should set the default values' do
           actionpolicy.config.should == config
           actionpolicy.agent.should == 'rspec_agent'
-          actionpolicy.caller.should == 'rspec_caller'
+          actionpolicy.caller_id.should == 'rspec_caller'
           actionpolicy.action.should == 'rspec_action'
           actionpolicy.allow_unconfigured.should == false
           actionpolicy.configdir.should == '/rspecdir'
@@ -114,30 +168,30 @@ module MCollective
         # Fixtures
 
         it 'should parse the default alllow policy' do
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'default_allow')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'default_allow')).should be_true
         end
 
         it 'should parse the default deny policy' do
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'default_deny'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'default_deny'))
           }.to raise_error RPCAborted
         end
 
         # Example fixtures
 
         it 'should parse example1 correctly' do
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example1')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example1')).should be_true
         end
 
         it 'should parse example2 correctly' do
           request.stubs(:caller).returns('uid=500')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example2')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example2')).should be_true
 
           request.stubs(:caller).returns('uid=501')
           actionpolicy = ActionPolicy.new(request)
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example2'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example2'))
           }.to raise_error RPCAborted
 
         end
@@ -145,34 +199,34 @@ module MCollective
         it 'should parse example3 correctly' do
           request.stubs(:action).returns('rspec')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example3')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example3')).should be_true
 
           request.stubs(:action).returns('notrspec')
           actionpolicy = ActionPolicy.new(request)
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example3'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example3'))
           }.to raise_error RPCAborted
 
         end
 
         it 'should parse example4 correctly' do
           Util.stubs(:get_fact).with('foo').returns('bar')
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example4')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example4')).should be_true
 
           Util.stubs(:get_fact).with('foo').returns('notbar')
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example4'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example4'))
           }.to raise_error RPCAborted
 
         end
 
         it 'should parse example5 correctly' do
           Util.stubs(:has_cf_class?).with('rspec').returns(true)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example5')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example5')).should be_true
 
           Util.stubs(:has_cf_class?).with('rspec').returns(false)
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example5'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example5'))
           }.to raise_error RPCAborted
 
         end
@@ -181,13 +235,13 @@ module MCollective
           request.stubs(:caller).returns('uid=500')
           request.stubs(:action).returns('rspec')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example6')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example6')).should be_true
 
           request.stubs(:caller).returns('uid=501')
           request.stubs(:action).returns('notrspec')
           actionpolicy = ActionPolicy.new(request)
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example6'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example6'))
           }.to raise_error RPCAborted
 
         end
@@ -196,13 +250,13 @@ module MCollective
           request.stubs(:caller).returns('uid=500')
           Util.stubs(:get_fact).with('foo').returns('bar')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example7')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example7')).should be_true
 
           request.stubs(:caller).returns('uid=501')
           Util.stubs(:get_fact).with('foo').returns('notbar')
           actionpolicy = ActionPolicy.new(request)
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example7'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example7'))
           }.to raise_error RPCAborted
 
         end
@@ -211,12 +265,12 @@ module MCollective
           request.stubs(:caller).returns('uid=500')
           Util.stubs(:has_cf_class?).with('rspec').returns(true)
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example8')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example8')).should be_true
 
           Util.stubs(:has_cf_class?).with('rspec').returns(false)
           actionpolicy = ActionPolicy.new(request)
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example8'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example8'))
           }.to raise_error RPCAborted
 
         end
@@ -226,14 +280,14 @@ module MCollective
           request.stubs(:action).returns('rspec')
           Util.stubs(:get_fact).with('foo').returns('bar')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example9')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example9')).should be_true
 
           request.stubs(:caller).returns('uid=501')
           request.stubs(:action).returns('notrspec')
           Util.stubs(:get_fact).with('foo').returns('notbar')
           actionpolicy = ActionPolicy.new(request)
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example9'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example9'))
           }.to raise_error RPCAborted
 
         end
@@ -243,14 +297,14 @@ module MCollective
           request.stubs(:action).returns('rspec')
           Util.stubs(:has_cf_class?).with('rspec').returns(true)
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example10')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example10')).should be_true
 
           request.stubs(:caller).returns('uid=501')
           request.stubs(:action).returns('notrspec')
           Util.stubs(:has_cf_class?).with('rspec').returns(false)
           actionpolicy = ActionPolicy.new(request)
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example10'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example10'))
           }.to raise_error RPCAborted
 
 
@@ -263,7 +317,7 @@ module MCollective
           Util.stubs(:has_cf_class?).with('rspec').returns(true)
           Util.stubs(:get_fact).with('foo').returns('bar')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example10')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example10')).should be_true
 
           request.stubs(:caller).returns('uid=501')
           request.stubs(:action).returns('notrspec')
@@ -271,7 +325,7 @@ module MCollective
           Util.stubs(:get_fact).with('foo').returns('notbar')
           actionpolicy = ActionPolicy.new(request)
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example10'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example10'))
           }.to raise_error RPCAborted
         end
 
@@ -282,7 +336,7 @@ module MCollective
           Util.stubs(:get_fact).with('foo').returns('bar')
           Util.stubs(:get_fact).with('bar').returns('foo')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example12')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example12')).should be_true
         end
 
         it 'should parse example13 correctly' do
@@ -293,7 +347,7 @@ module MCollective
           Util.stubs(:has_cf_class?).with('three').returns(false)
           Util.stubs(:get_fact).with('foo').returns('bar')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example13')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example13')).should be_true
         end
 
         it 'should parse example14 correctly' do
@@ -303,35 +357,35 @@ module MCollective
           Util.stubs(:has_cf_class?).with('two').returns(false)
           Util.stubs(:get_fact).with('foo').returns('bar')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example14')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example14')).should be_true
         end
 
         it 'should parse example15 correctly' do
           # first field
           request.stubs(:caller).returns('uid=500')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example15')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example15')).should be_true
 
           # second field
           request.stubs(:caller).returns('uid=600')
           Util.stubs(:get_fact).with('customer').returns('acme')
           Util.stubs(:has_cf_class?).with('acme::devserver').returns(true)
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example15')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example15')).should be_true
 
           # third field
           request.stubs(:caller).returns('uid=600')
           request.stubs(:action).returns('status')
           Util.stubs(:get_fact).with('customer').returns('acme')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example15')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example15')).should be_true
 
           # forth field
           request.stubs(:caller).returns('uid=600')
           request.stubs(:action).returns('status')
           Util.stubs(:get_fact).with('customer').returns('acme')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example15')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example15')).should be_true
 
           # fith field
           request.stubs(:caller).returns('uid=700')
@@ -339,7 +393,7 @@ module MCollective
           Util.stubs(:get_fact).with('environment').returns('development')
           Matcher.stubs(:eval_compound_fstatement).with('value' => 'enabled', 'name' => 'puppet', 'operator' => '==', 'params' => nil, 'r_compare' => 'false').returns(true)
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example15')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example15')).should be_true
 
 
         end
@@ -348,20 +402,26 @@ module MCollective
           # match uid in the list
           request.stubs(:caller).returns('uid=600')
           actionpolicy = ActionPolicy.new(request)
-          actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example16')).should be_true
+          actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example16')).should be_true
 
           # match uid not in the list
           request.stubs(:caller).returns('uid=800')
           actionpolicy = ActionPolicy.new(request)
           expect{
-            actionpolicy.parse_policy_file(File.join(@fixtures_dir, 'example16'))
+            actionpolicy.parse_policy_file(File.join(fixtures_dir, 'example16'))
           }.to raise_error RPCAborted
         end
       end
 
       describe '#check_policy' do
+        before(:each) do
+          Log.stubs(:debug)
+          actionpolicy.parse_group_file(File.join(fixtures_dir, "groups"))
+        end
+
         it 'should return false if the policy line does not include the caller' do
           actionpolicy.check_policy('caller', nil, nil, nil).should be_false
+          actionpolicy.check_policy('app_admin', nil, nil, nil).should be_false
         end
 
         it 'should return false if the policy line does not include the action' do
@@ -369,9 +429,10 @@ module MCollective
         end
 
         it 'should parse both facts and classes if callers and actions match' do
-          actionpolicy.expects(:parse_facts).with('*').returns(true)
-          actionpolicy.expects(:parse_classes).with('*').returns(true)
+          actionpolicy.expects(:parse_facts).with('*').returns(true).twice
+          actionpolicy.expects(:parse_classes).with('*').returns(true).twice
           actionpolicy.check_policy('rspec_caller', 'rspec_action', '*', '*').should be_true
+          actionpolicy.check_policy('sysadmin', 'rspec_action', '*', '*').should be_true
         end
 
         it 'should parse a compound statement if callers and actions match but classes are excluded' do
@@ -477,9 +538,9 @@ module MCollective
           actionpolicy.lookup_policy_file.should == '/rspecdir/policies/rspec.policy'
         end
 
-        it 'should return nil if no policy file exists' do
+        it 'should return false if no policy file exists' do
           File.expects(:exist?).with('/rspecdir/policies/rspec_agent.policy').returns(false)
-          actionpolicy.lookup_policy_file.should == nil
+          actionpolicy.lookup_policy_file.should == false
         end
       end
 
