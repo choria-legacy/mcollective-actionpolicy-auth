@@ -89,11 +89,30 @@ Policy files must have the following format:
 
 ### Caller ID
 
-Caller ID strings are always of the form `<kind>=<value>`, but both the kind and the value of the ID will depend on your security plugin. See your security plugin's documentation or code for details. Multiple Caller IDs separated by spaces are supported to allow grouping similar callers together.
+In the case of a single user the Caller ID strings are always of the form `<kind>=<value>`, but both the kind and the value of the ID will depend on your security plugin. See your security plugin's documentation or code for details. Multiple Caller IDs separated by spaces are supported to allow grouping similar callers together.
+
+You can also define named groups of callers like `sysadmin`, see the Groups section below.
 
 * The recommended SSL security plugin sets caller IDs of `cert=<NAME>`, where `<NAME>` is the filename of the client's public key file (minus the `.pem` extension). So a request validated with the `puppet-admins.pem` public key file would be given a caller ID of `cert=puppet-admins`. This kind of caller ID is cryptographically authenticated.
 * The PSK security plugin defaults to caller IDs of `uid=<UID>`, where `<UID>` is the local UID of the client process. [There are several other options available](https://github.com/puppetlabs/marionette-collective/blob/master/plugins/mcollective/security/psk.rb#L79), which can be configured with the `plugin.psk.callertype` setting. **None of PSK's caller IDs are authenticated,** and you should generally not be relying on authorization at all if you are using the PSK security plugin.
 
+
+### Groups
+
+You can create a file called `<configdir>/policies/groups` with content as here:
+
+    # sample groups file
+    sysadmins cert=sa1 cert=sa2
+
+Fields are space separated, group names should match `^([\w\.\-]+)$`
+
+Here we create a `sysadmins` group that has 2 Caller IDs in it, the same rules as above for Caller IDs apply here.  Only Caller IDs can be references not other groups.
+
+This group can then be used where you would normal put a Caller ID:
+
+    allow   sysadmins      *                       customer=acme    acme::devserver
+
+You can list multiple groups in space separated lists.  You cannot mix certnames and group names in the same policy line.
 
 Hardcoding ActionPolicy Into a Specific Agent
 ============================

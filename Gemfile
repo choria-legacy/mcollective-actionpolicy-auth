@@ -3,9 +3,8 @@ source 'https://rubygems.org'
 
 group :test do
   gem 'rake'
-  gem 'rspec', '~> 2.11.0'
-  gem 'mocha', '~> 0.10.0'
-  gem 'mcollective-test'
+  gem 'rspec', '~> 3.5.0'
+  gem 'mocha', '~> 1.2.0'
 end
 
 mcollective_version = ENV['MCOLLECTIVE_GEM_VERSION']
