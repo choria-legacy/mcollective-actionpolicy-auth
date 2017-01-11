@@ -1,7 +1,8 @@
 module MCollective
   module Util
     class ActionPolicy
-      attr_accessor :config, :allow_unconfigured, :configdir, :agent, :caller_id, :action, :groups
+      attr_accessor :config, :allow_unconfigured, :configdir, :agent, :caller_id
+      attr_accessor :action, :groups, :enable_default, :default_name
 
       def self.authorize(request)
         ActionPolicy.new(request).authorize_request
@@ -13,6 +14,8 @@ module MCollective
         @caller_id = request.caller
         @action = request.action
         @allow_unconfigured = !!(config.pluginconf.fetch('actionpolicy.allow_unconfigured', 'n') =~ /^1|y/i)
+        @enable_default = !!(config.pluginconf.fetch('actionpolicy.enable_default', 'n') =~ /^1|y/i)
+        @default_name = config.pluginconf.fetch('actionpolicy.default_name', 'default')
         @configdir = @config.configdir
         @groups = {}
       end
@@ -249,9 +252,8 @@ module MCollective
 
         return policy_file if File.exist?(policy_file)
 
-        if config.pluginconf.fetch('actionpolicy.enable_default', 'n') =~ /^1|y/i
-          defaultname = config.pluginconf.fetch('actionpolicy.default_name', 'default')
-          default_file = File.join(configdir, "policies", "#{defaultname}.policy")
+        if enable_default
+          default_file = File.join(configdir, "policies", "#{default_name}.policy")
 
           Log.debug("Initial lookup failed: looking for policy in #{default_file}")
 
