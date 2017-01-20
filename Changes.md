@@ -1,3 +1,9 @@
+# 2.2.0
+
+* Change debug message to warning if action policy cannot be parsed (PR#8)
+* Add support for groups of callerids (MCOP-583)
+
+
 # 2.1.0
 
 * Support multiple callerids to be specified per line (PR#6)
