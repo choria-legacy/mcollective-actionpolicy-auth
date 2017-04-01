@@ -126,3 +126,5 @@ Instead of using the site-wide authorization settings (as described above), you 
             # ...
         end
     end
+
+By hardcoding, you're indicating that the ActionPolicy rules *must* allow this action or it will fail.
