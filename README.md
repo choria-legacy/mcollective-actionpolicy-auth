@@ -1,6 +1,14 @@
 Action Policy Authorization Plugin
 =============================
 
+## Deprecation Notice
+
+This repository holds legacy code related to The Marionette Collective project.  That project has been deprecated by Puppet Inc and the code donated to the Choria Project.
+
+Please review the [Choria Project Website](https://choria.io) and specifically the [MCollective Deprecation Notice](https://choria.io/mcollective) for further information and details about the future of the MCollective project.
+
+## Overview
+
 This is a plugin that provides fine grained action level authorization for agents. Any MCollective agent plugins based on SimpleRPC can be restricted with authorization plugins like this one.
 
 Installation
